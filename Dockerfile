@@ -1,7 +1,6 @@
-# Use the official PHP image with Apache
 FROM php:8.2-apache
 
-# Install necessary system packages & PHP extensions
+# Install dependencies and PHP extensions
 RUN apt-get update && apt-get install -y \
     git curl zip unzip libpng-dev libonig-dev libxml2-dev libzip-dev \
     && docker-php-ext-install pdo_mysql mbstring zip exif pcntl bcmath gd
@@ -12,19 +11,32 @@ RUN a2enmod rewrite
 # Set working directory
 WORKDIR /var/www/html
 
-# Copy project files
-COPY . .
+# Copy all Laravel project files
+COPY . /var/www/html
+
+# Set Apache to serve from Laravel's /public directory
+ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
+RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf && \
+    sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 RUN composer install --no-dev --optimize-autoloader
 
-# Copy example.env to .env and set debug false
+# Copy .env and disable debug
 RUN cp .env.example .env && \
     sed -i 's/APP_DEBUG=true/APP_DEBUG=false/' .env
 
 # Set correct permissions
 RUN chown -R www-data:www-data storage bootstrap/cache
 
-# Set environment to production
+# Laravel config caching
+RUN php artisan config:cache && \
+    php artisan route:cache && \
+    php artisan view:cache
+
+# Expose port 80
+EXPOSE 80
+
+# Set environment
 ENV APP_ENV=production
