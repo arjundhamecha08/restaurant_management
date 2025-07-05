@@ -28,8 +28,7 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 RUN composer install --no-dev --optimize-autoloader
 
 # Copy .env from example and disable debug
-RUN cp .env.example .env && \
-    sed -i 's/APP_DEBUG=true/APP_DEBUG=false/' .env
+RUN cp .env.example .env &&
 
 # Set permissions
 RUN chown -R www-data:www-data storage bootstrap/cache
@@ -39,7 +38,8 @@ RUN php artisan config:cache && \
     php artisan route:cache && \
     php artisan view:cache
 
-# Expose correct port
 EXPOSE 8080
+RUN sed -i 's/Listen 80/Listen 8080/' /etc/apache2/ports.conf && \
+    sed -i 's/:80/:8080/' /etc/apache2/sites-available/000-default.conf
 
 ENV APP_ENV=production
